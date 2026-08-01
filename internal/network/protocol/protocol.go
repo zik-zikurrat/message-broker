@@ -9,6 +9,10 @@ import (
 )
 
 const (
+	minHeaderSize = 8
+)
+
+const (
 	MagicZA = 0x5A41
 	MagicKA = 0x4B41
 )
@@ -38,6 +42,9 @@ type ZProtocol struct {
 }
 
 func NewZProtocol(cfg *config.ProtocolConfig) *ZProtocol {
+	if cfg.HeaderSize < minHeaderSize {
+		panic("header size must be at least 8 bytes")
+	}
 	return &ZProtocol{
 		cfg:            cfg,
 		maxPayloadSize: cfg.MaxPayLoadSize,
