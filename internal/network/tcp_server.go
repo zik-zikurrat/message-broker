@@ -87,11 +87,13 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 		}
 	}()
 	for {
+		conn.SetReadDeadline(time.Now().Add(s.readTimeout))
 		msg, err := s.protocol.Decode(conn)
 		if err != nil {
 			s.sendError(conn, err)
 			break
 		}
+		conn.SetWriteDeadline(time.Now().Add(s.readTimeout))
 		if err := s.protocol.Encode(conn, msg); err != nil {
 			log.Printf("failed to send message: %v", err)
 			conn.Close()

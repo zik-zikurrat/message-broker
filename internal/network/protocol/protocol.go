@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	MagicByte1 = 0xCA
-	MagicByte2 = 0xFE
+	MagicZA = 0x5A41
+	MagicKA = 0x4B41
 )
 
 const (
@@ -59,8 +59,7 @@ func (p *ZProtocol) Encode(w io.Writer, msg *Message) error {
 
 	header := make([]byte, p.headerSize)
 
-	header[0] = MagicByte1
-	header[1] = MagicByte2
+	binary.BigEndian.PutUint16(header[0:2], MagicZA)
 
 	header[2] = msg.Version
 	header[3] = msg.Type
@@ -86,7 +85,14 @@ func (p *ZProtocol) Decode(r io.Reader) (*Message, error) {
 		return nil, err
 	}
 
-	if header[0] != MagicByte1 || header[1] != MagicByte2 {
+	magic := binary.BigEndian.Uint16(header[0:2])
+
+	switch magic {
+	case MagicZA:
+		log.Println("header identified: type ZA")
+	case MagicKA:
+		log.Println("header identified: type KA")
+	default:
 		return nil, ErrInvalidMagic
 	}
 
