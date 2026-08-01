@@ -9,12 +9,11 @@ import (
 )
 
 const (
-	minHeaderSize = 8
+	headerSize = 10
 )
 
 const (
-	MagicZA = 0x5A41
-	MagicKA = 0x4B41
+	MagicZAKA uint32 = 0x5A414B41
 )
 
 const (
@@ -36,20 +35,18 @@ var (
 
 type ZProtocol struct {
 	cfg            *config.ProtocolConfig
-	maxPayloadSize uint32
+	maxPayloadSize int
 	Version        uint8
-	headerSize     uint8
 }
 
 func NewZProtocol(cfg *config.ProtocolConfig) *ZProtocol {
-	if cfg.HeaderSize < minHeaderSize {
-		panic("header size must be at least 8 bytes")
+	if cfg.MaxPayLoadSize <= 0 {
+		panic("payload size should be greater than 0")
 	}
 	return &ZProtocol{
 		cfg:            cfg,
 		maxPayloadSize: cfg.MaxPayLoadSize,
 		Version:        cfg.Version,
-		headerSize:     cfg.HeaderSize,
 	}
 }
 
@@ -60,13 +57,13 @@ type Message struct {
 }
 
 func (p *ZProtocol) Encode(w io.Writer, msg *Message) error {
-	if len(msg.Payload) > int(p.maxPayloadSize) {
+	if len(msg.Payload) > p.maxPayloadSize {
 		return ErrPayloadTooLarge
 	}
 
-	header := make([]byte, p.headerSize)
+	header := make([]byte, headerSize)
 
-	binary.BigEndian.PutUint16(header[0:2], MagicZA)
+	binary.BigEndian.PutUint32(header[0:4], MagicZAKA)
 
 	header[2] = msg.Version
 	header[3] = msg.Type
@@ -86,24 +83,18 @@ func (p *ZProtocol) Encode(w io.Writer, msg *Message) error {
 }
 
 func (p *ZProtocol) Decode(r io.Reader) (*Message, error) {
-	header := make([]byte, p.headerSize)
+	header := make([]byte, headerSize)
 
 	if _, err := io.ReadFull(r, header); err != nil {
 		return nil, err
 	}
 
-	magic := binary.BigEndian.Uint16(header[0:2])
-
-	switch magic {
-	case MagicZA:
-		log.Println("header identified: type ZA")
-	case MagicKA:
-		log.Println("header identified: type KA")
-	default:
+	magic := binary.BigEndian.Uint32(header[0:2])
+	if magic != MagicZAKA {
 		return nil, ErrInvalidMagic
 	}
 
-	version := header[2]
+	version := header[5]
 	if version != byte(p.Version) {
 		return nil, ErrUnsupportedVersion
 	}
@@ -111,7 +102,7 @@ func (p *ZProtocol) Decode(r io.Reader) (*Message, error) {
 	msgType := header[3]
 	payloadLen := binary.BigEndian.Uint32(header[4:8])
 
-	if payloadLen > p.maxPayloadSize {
+	if payloadLen > uint32(p.maxPayloadSize) {
 		return nil, ErrPayloadTooLarge
 	}
 

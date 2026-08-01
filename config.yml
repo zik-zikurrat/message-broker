@@ -6,7 +6,6 @@ server:
 protocol:
   max_payload_size: 1048576 # 1MB
   heartbeat_supported: true
-  header_size: 8
   version: 1
 connection:
   read_timeout: 5s 
