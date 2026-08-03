@@ -113,6 +113,8 @@ func (p *ZProtocol) Decode(r io.Reader) (*Message, error) {
 		}
 	}
 
+	processData(payload)
+
 	return &Message{
 		Version: version,
 		Type:    msgType,

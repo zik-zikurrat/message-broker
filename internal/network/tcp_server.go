@@ -10,7 +10,6 @@ import (
 	"time"
 )
 
-// обязанность сервера принимать новые соединения и держать их
 type TCPServer struct {
 	listener       net.Listener
 	idleTimeout    time.Duration
@@ -115,3 +114,6 @@ func (s *TCPServer) sendError(conn net.Conn, err error) {
 		log.Printf("failed to send error: %v", err)
 	}
 }
+
+// так протокол готов на базовом уровне
+// мне щас нужно через tcp сервер принимать сообщения и начать их сохранять в лог
