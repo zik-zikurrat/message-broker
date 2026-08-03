@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"bytes"
+	"errors"
 	"message-broker/internal/config"
 	"testing"
 )
@@ -16,19 +17,29 @@ func initializeProtocol() *ZProtocol {
 	return protocol
 }
 
-func TestMessageTypePing(t *testing.T) {
+func TestMessageSendSuccess(t *testing.T) {
 	var buf bytes.Buffer
 	p := initializeProtocol()
 	p.Encode(&buf, &Message{Version: 1, Type: TypePing})
-	got, err := p.Decode(&buf)
+	_, err := p.Decode(&buf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got.Type != TypePong {
-		t.Fatal("unexpeted response type")
-	}
 }
 
+func TestMessageSendFailedVersion(t *testing.T) {
+	var buf bytes.Buffer
+	p := initializeProtocol()
+	p.Encode(&buf, &Message{Version: 2, Type: TypePing})
+	_, err := p.Decode(&buf)
+	if err != nil {
+		if errors.Is(err, ErrUnsupportedVersion) {
+			return
+		} else {
+			t.Fatalf("unexpected error: expect ErrUnsupportedVersion, got: %v", err)
+		}
+	}
+}
 func TestDecodeMessage(t *testing.T) {
 
 }

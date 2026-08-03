@@ -65,10 +65,10 @@ func (p *ZProtocol) Encode(w io.Writer, msg *Message) error {
 
 	binary.BigEndian.PutUint32(header[0:4], MagicZAKA)
 
-	header[2] = msg.Version
-	header[3] = msg.Type
+	header[4] = msg.Version
+	header[5] = msg.Type
 
-	binary.BigEndian.PutUint32(header[4:8], uint32(len(msg.Payload)))
+	binary.BigEndian.PutUint32(header[6:10], uint32(len(msg.Payload)))
 
 	if _, err := w.Write(header); err != nil {
 		return err
@@ -89,18 +89,18 @@ func (p *ZProtocol) Decode(r io.Reader) (*Message, error) {
 		return nil, err
 	}
 
-	magic := binary.BigEndian.Uint32(header[0:2])
+	magic := binary.BigEndian.Uint32(header[0:4])
 	if magic != MagicZAKA {
 		return nil, ErrInvalidMagic
 	}
 
-	version := header[5]
+	version := header[4]
 	if version != byte(p.Version) {
 		return nil, ErrUnsupportedVersion
 	}
 
-	msgType := header[3]
-	payloadLen := binary.BigEndian.Uint32(header[4:8])
+	msgType := header[5]
+	payloadLen := binary.BigEndian.Uint32(header[6:10])
 
 	if payloadLen > uint32(p.maxPayloadSize) {
 		return nil, ErrPayloadTooLarge
