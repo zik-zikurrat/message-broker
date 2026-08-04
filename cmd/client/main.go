@@ -28,5 +28,5 @@ func main() {
 	if err != nil {
 		log.Printf("send error: %v\n", err)
 	}
-	fmt.Printf("RESP: %v\n", resp)
+	fmt.Printf("RESP: Header: %v, Payload: %b\n", resp.Header, resp.Payload)
 }
