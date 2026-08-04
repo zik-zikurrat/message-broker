@@ -86,12 +86,42 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 			log.Printf("close server: %v\n", err)
 		}
 	}()
+Exit:
 	for {
 		conn.SetReadDeadline(time.Now().Add(s.idleTimeout))
 		header, err := s.protocol.DecodeHeader(conn)
 		if err != nil {
 			s.sendError(conn, err)
 			break
+		}
+		switch header.Type {
+		case protocol.TypePing:
+			ans := protocol.Message{
+				Header: protocol.Header{
+					Version:    header.Version,
+					Type:       protocol.TypePong,
+					PayloadLen: 0,
+				},
+				Payload: nil,
+			}
+			if err := s.protocol.Encode(conn, &ans); err != nil {
+				s.sendError(conn, err)
+				continue Exit
+			}
+		case protocol.TypeData:
+			header.Type = protocol.TypeAck
+			msg, err := s.protocol.Decode(conn, header)
+			if err != nil {
+				s.sendError(conn, err)
+				continue Exit
+			}
+			if err := s.protocol.Encode(conn, msg); err != nil {
+				s.sendError(conn, err)
+				continue Exit
+			}
+		default:
+			s.sendError(conn, errors.ErrUnsupported)
+			continue Exit
 		}
 		conn.SetReadDeadline(time.Now().Add(s.readTimeout))
 		msg, err := s.protocol.Decode(conn, header)
