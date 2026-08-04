@@ -1,10 +1,8 @@
-Magic - ZAKA
-Version
-Magic+Version = 5 bytes
-Message Types - 5 types(TypePing, TypePong, TypePublish, TypeSubscribe, TypeAck, TypeError)
+Header
 
-What need inside message:
-    Publish: topic, ack_level, payload
-    Subscribe: topic, consumer_group
-    Ping: nothing
-    Ack: correlation_id
+[
+    magic 4
+    version 1
+    type 1
+    length 4(в 4 байтах помещается до 4 294 967 295 хватит для 1 мб)
+] = 10 byte

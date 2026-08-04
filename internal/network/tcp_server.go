@@ -2,6 +2,8 @@ package network
 
 import (
 	"context"
+	"errors"
+	"io"
 	"log"
 	"message-broker/internal/config"
 	"message-broker/internal/network/protocol"
@@ -89,14 +91,18 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 		conn.SetReadDeadline(time.Now().Add(s.readTimeout))
 		msg, err := s.protocol.Decode(conn)
 		if err != nil {
-			s.sendError(conn, err)
+			if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
+				break
+			} else {
+				s.sendError(conn, err)
+			}
 			break
 		}
-		conn.SetWriteDeadline(time.Now().Add(s.readTimeout))
+		conn.SetWriteDeadline(time.Now().Add(s.writeTimeout))
 		if err := s.protocol.Encode(conn, msg); err != nil {
 			log.Printf("failed to send message: %v", err)
 			conn.Close()
-			continue
+			break
 		}
 	}
 }
@@ -114,6 +120,3 @@ func (s *TCPServer) sendError(conn net.Conn, err error) {
 		log.Printf("failed to send error: %v", err)
 	}
 }
-
-// так протокол готов на базовом уровне
-// мне щас нужно через tcp сервер принимать сообщения и начать их сохранять в лог

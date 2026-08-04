@@ -24,9 +24,6 @@ const (
 	TypeError
 )
 
-// Я должен не делать handshake просто слать сообщение брокер отвечает в зависимости от гарантии 0, 1, all
-// Обязанность протокола - кодировать декодировать сообщение, валидировать его размер и прочие детали, так же, если heartbeat перестал отправляться запустить ребаласировку брокера
-
 var (
 	ErrInvalidMagic       = errors.New("invalid magic bytes")
 	ErrPayloadTooLarge    = errors.New("payload exceeds maximum size")
@@ -35,7 +32,7 @@ var (
 
 type ZProtocol struct {
 	cfg            *config.ProtocolConfig
-	maxPayloadSize int
+	maxPayloadSize uint32
 	Version        uint8
 }
 
@@ -57,7 +54,7 @@ type Message struct {
 }
 
 func (p *ZProtocol) Encode(w io.Writer, msg *Message) error {
-	if len(msg.Payload) > p.maxPayloadSize {
+	if len(msg.Payload) > int(p.maxPayloadSize) {
 		return ErrPayloadTooLarge
 	}
 
@@ -112,8 +109,6 @@ func (p *ZProtocol) Decode(r io.Reader) (*Message, error) {
 			return nil, err
 		}
 	}
-
-	processData(payload)
 
 	return &Message{
 		Version: version,
