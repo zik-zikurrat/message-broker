@@ -117,8 +117,22 @@ func isSendbleError(err error) bool {
 	return false
 }
 
+func isFatalError(err error) bool {
+	fatalErrors := []error{protocol.ErrPayloadTooLarge}
+	for _, fErr := range fatalErrors {
+		if errors.Is(err, fErr) {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *TCPServer) sendError(conn net.Conn, err error) {
 	if !isSendbleError(err) {
+		return
+	}
+	if isFatalError(err) {
+		conn.Close()
 		return
 	}
 	log.Printf("got protocol error: %v\n", err)

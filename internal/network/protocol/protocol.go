@@ -111,7 +111,6 @@ func (p *ZProtocol) DecodeHeader(r io.Reader) (*Header, error) {
 }
 
 func (p *ZProtocol) Decode(r io.Reader, header *Header) (*Message, error) {
-
 	if header.PayloadLen > uint32(p.maxPayloadSize) {
 		return nil, ErrPayloadTooLarge
 	}
