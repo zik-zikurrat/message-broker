@@ -3,7 +3,6 @@ package network
 import (
 	"context"
 	"errors"
-	"io"
 	"log"
 	"message-broker/internal/config"
 	"message-broker/internal/network/protocol"
@@ -88,29 +87,47 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 		}
 	}()
 	for {
-		conn.SetReadDeadline(time.Now().Add(s.readTimeout))
-		msg, err := s.protocol.Decode(conn)
+		conn.SetReadDeadline(time.Now().Add(s.idleTimeout))
+		header, err := s.protocol.DecodeHeader(conn)
 		if err != nil {
-			if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
-				break
-			} else {
-				s.sendError(conn, err)
-			}
+			s.sendError(conn, err)
+			break
+		}
+		conn.SetReadDeadline(time.Now().Add(s.readTimeout))
+		msg, err := s.protocol.Decode(conn, header)
+		if err != nil {
+			s.sendError(conn, err)
 			break
 		}
 		conn.SetWriteDeadline(time.Now().Add(s.writeTimeout))
 		if err := s.protocol.Encode(conn, msg); err != nil {
-			log.Printf("failed to send message: %v", err)
-			conn.Close()
+			s.sendError(conn, err)
 			break
 		}
 	}
 }
 
+func isSendbleError(err error) bool {
+	protocolErrors := []error{protocol.ErrInvalidMagic, protocol.ErrPayloadTooLarge, protocol.ErrUnsupportedVersion}
+	for _, pErr := range protocolErrors {
+		if errors.Is(err, pErr) {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *TCPServer) sendError(conn net.Conn, err error) {
+	if !isSendbleError(err) {
+		return
+	}
+	log.Printf("got protocol error: %v\n", err)
 	errMsg := &protocol.Message{
-		Version: s.protocol.Version,
-		Type:    protocol.TypeError,
+		Header: protocol.Header{
+			Version:    s.protocol.Version,
+			Type:       protocol.TypeError,
+			PayloadLen: uint32(len([]byte(err.Error()))),
+		},
 		Payload: []byte(err.Error()),
 	}
 	if err := conn.SetWriteDeadline(time.Now().Add(s.writeTimeout)); err != nil {

@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"log"
 	"message-broker/internal/config"
 )
 
@@ -25,9 +24,10 @@ const (
 )
 
 var (
-	ErrInvalidMagic       = errors.New("invalid magic bytes")
-	ErrPayloadTooLarge    = errors.New("payload exceeds maximum size")
-	ErrUnsupportedVersion = errors.New("unsupported protocol version")
+	ErrInvalidMagic           = errors.New("invalid magic bytes")
+	ErrPayloadTooLarge        = errors.New("payload exceeds maximum size")
+	ErrUnsupportedVersion     = errors.New("unsupported protocol version")
+	ErrUnsupportedMessageType = errors.New("unsupported message type")
 )
 
 type ZProtocol struct {
@@ -47,9 +47,14 @@ func NewZProtocol(cfg *config.ProtocolConfig) *ZProtocol {
 	}
 }
 
+type Header struct {
+	Version    uint8
+	Type       uint8
+	PayloadLen uint32
+}
+
 type Message struct {
-	Version uint8
-	Type    uint8
+	Header  Header
 	Payload []byte
 }
 
@@ -62,8 +67,8 @@ func (p *ZProtocol) Encode(w io.Writer, msg *Message) error {
 
 	binary.BigEndian.PutUint32(header[0:4], MagicZAKA)
 
-	header[4] = msg.Version
-	header[5] = msg.Type
+	header[4] = msg.Header.Version
+	header[5] = msg.Header.Type
 
 	binary.BigEndian.PutUint32(header[6:10], uint32(len(msg.Payload)))
 
@@ -79,7 +84,7 @@ func (p *ZProtocol) Encode(w io.Writer, msg *Message) error {
 	return nil
 }
 
-func (p *ZProtocol) Decode(r io.Reader) (*Message, error) {
+func (p *ZProtocol) DecodeHeader(r io.Reader) (*Header, error) {
 	header := make([]byte, headerSize)
 
 	if _, err := io.ReadFull(r, header); err != nil {
@@ -98,25 +103,38 @@ func (p *ZProtocol) Decode(r io.Reader) (*Message, error) {
 
 	msgType := header[5]
 	payloadLen := binary.BigEndian.Uint32(header[6:10])
+	return &Header{
+		Version:    version,
+		Type:       msgType,
+		PayloadLen: payloadLen,
+	}, nil
+}
 
-	if payloadLen > uint32(p.maxPayloadSize) {
+func (p *ZProtocol) Decode(r io.Reader, header *Header) (*Message, error) {
+
+	if header.PayloadLen > uint32(p.maxPayloadSize) {
 		return nil, ErrPayloadTooLarge
 	}
 
-	payload := make([]byte, payloadLen)
-	if payloadLen > 0 {
+	payload := make([]byte, header.PayloadLen)
+	if int(header.PayloadLen) > 0 {
 		if _, err := io.ReadFull(r, payload); err != nil {
 			return nil, err
 		}
 	}
 
 	return &Message{
-		Version: version,
-		Type:    msgType,
+		Header:  *header,
 		Payload: payload,
 	}, nil
 }
 
-func processData(payload []byte) {
-	log.Printf("received %d bytes", len(payload))
+func isSupportedType(msgType byte) bool {
+	supportedTypes := []uint8{TypeAck, TypePing, TypeData, TypeError, TypePong}
+	for _, sType := range supportedTypes {
+		if uint8(msgType) == sType {
+			return true
+		}
+	}
+	return false
 }
