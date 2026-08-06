@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"log"
 	"message-broker/internal/config"
 )
 
@@ -123,10 +122,9 @@ func (p *ZProtocol) Decode(r io.Reader, header *Header) (*Message, error) {
 			return nil, err
 		}
 	}
-	p.processMessage(payload)
 	return &Message{
 		Header:  *header,
-		Payload: nil,
+		Payload: payload,
 	}, nil
 }
 
@@ -138,8 +136,4 @@ func isSupportedType(msgType byte) bool {
 		}
 	}
 	return false
-}
-
-func (p *ZProtocol) processMessage(payload []byte) {
-	log.Print("received payload!")
 }

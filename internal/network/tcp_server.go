@@ -12,6 +12,10 @@ import (
 	"time"
 )
 
+type Handler interface {
+	Handle(payload []byte) error
+}
+
 type TCPServer struct {
 	listener       net.Listener
 	idleTimeout    time.Duration
@@ -36,7 +40,7 @@ func NewTCPServer(cfg *config.Config, protocol *protocol.ZProtocol) (*TCPServer,
 	}, nil
 }
 
-func (s *TCPServer) Start(ctx context.Context) {
+func (s *TCPServer) Start(ctx context.Context, handler Handler) {
 	sem := make(chan struct{}, s.maxConnections)
 	wg := sync.WaitGroup{}
 	log.Printf("server start with address: %s\n", s.listener.Addr())
@@ -71,12 +75,12 @@ func (s *TCPServer) Start(ctx context.Context) {
 		go func() {
 			defer wg.Done()
 			defer func() { <-sem }()
-			s.handleConnection(conn)
+			s.handleConnection(conn, handler)
 		}()
 	}
 }
 
-func (s *TCPServer) handleConnection(conn net.Conn) {
+func (s *TCPServer) handleConnection(conn net.Conn, handler Handler) {
 	defer func() {
 		if v := recover(); v != nil {
 			log.Printf("captured panic: %v\n", v)
@@ -125,7 +129,10 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 				continue
 			}
 
+			handler.Handle(msg.Payload)
+
 			conn.SetWriteDeadline(time.Now().Add(s.writeTimeout))
+			msg.Header.Type = protocol.TypeAck
 			if err := s.protocol.Encode(conn, msg); err != nil {
 				s.sendError(conn, err)
 				return

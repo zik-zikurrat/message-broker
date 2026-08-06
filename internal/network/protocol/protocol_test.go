@@ -1,75 +1,139 @@
 package protocol
 
-// import (
-// 	"bytes"
-// 	"errors"
-// 	"message-broker/internal/config"
-// 	"testing"
-// )
+import (
+	"bytes"
+	"encoding/binary"
+	"errors"
+	"io"
+	"message-broker/internal/config"
+	"testing"
+)
 
-// func initializeProtocol() *ZProtocol {
-// 	cfg := config.ProtocolConfig{
-// 		HeartbeatSupported: false,
-// 		MaxPayLoadSize:     1048576,
-// 		Version:            1,
-// 	}
-// 	protocol := NewZProtocol(&cfg)
-// 	return protocol
-// }
+const (
+	InvalidMagic uint32 = 0x5A414B43
+)
 
-// func TestMessageSendSuccess(t *testing.T) {
-// 	var buf bytes.Buffer
-// 	p := initializeProtocol()
-// 	p.Encode(&buf, &Message{Version: 1, Type: TypePing})
-// 	_, err := p.Decode(&buf)
-// 	if err != nil {
-// 		t.Fatalf("unexpected error: %v", err)
-// 	}
-// }
+func InvalidEncode(w io.Writer, msg *Message, p *ZProtocol) error {
+	if len(msg.Payload) > int(p.maxPayloadSize) {
+		return ErrPayloadTooLarge
+	}
 
-// func TestMessageSendFailed(t *testing.T) {
-// 	var buf bytes.Buffer
-// 	p := initializeProtocol()
-// 	p.Encode(&buf, &Message{Version: 2, Type: TypePing})
-// 	_, err := p.Decode(&buf)
-// 	if err != nil {
-// 		if errors.Is(err, ErrUnsupportedVersion) {
-// 			return
-// 		} else {
-// 			t.Fatalf("unexpected error: expect ErrUnsupportedVersion, got: %v", err)
-// 		}
-// 	}
-// }
-// func TestEncodeMessageWithPayloadSuccess(t *testing.T) {
-// 	var buf bytes.Buffer
-// 	p := initializeProtocol()
-// 	if err := p.Encode(&buf, &Message{Version: 1, Type: TypeData, Payload: []byte("Test message")}); err != nil {
-// 		t.Fatalf("unexpected error: %v", err)
-// 	}
-// }
+	header := make([]byte, headerSize)
 
-// func TestDecodeMessageWithPayloadSuccess(t *testing.T) {
-// 	var buf bytes.Buffer
-// 	p := initializeProtocol()
-// 	payload := bytes.Repeat([]byte{'X'}, 1048576)
-// 	if err := p.Encode(&buf, &Message{Version: 1, Type: TypeData, Payload: payload}); err != nil {
-// 		t.Fatalf("unexpected error: %v", err)
-// 	}
-// 	_, err := p.Decode(&buf)
-// 	if err != nil {
-// 		t.Fatalf("unexpected error: %v", err)
-// 	}
-// }
+	binary.BigEndian.PutUint32(header[0:4], InvalidMagic)
 
-// func TestEncodeMessageWithPayloadFailed(t *testing.T) {
-// 	var buf bytes.Buffer
-// 	p := initializeProtocol()
-// 	payload := bytes.Repeat([]byte{'X'}, 1048577)
-// 	if err := p.Encode(&buf, &Message{Version: 1, Type: TypeData, Payload: payload}); err != nil {
-// 		if errors.Is(err, ErrPayloadTooLarge) {
-// 			return
-// 		} else {
-// 			t.Fatalf("unexpected error: expect ErrPayloadTooLarge, got: %v", err)
-// 		}
-// 	}
-// }
+	header[4] = msg.Header.Version
+	header[5] = msg.Header.Type
+
+	binary.BigEndian.PutUint32(header[6:10], uint32(len(msg.Payload)))
+
+	if _, err := w.Write(header); err != nil {
+		return err
+	}
+
+	if len(msg.Payload) > 0 {
+		if _, err := w.Write(msg.Payload); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func initializeProtocol() *ZProtocol {
+	cfg := config.ProtocolConfig{
+		HeartbeatSupported: false,
+		MaxPayLoadSize:     1048576,
+		Version:            1,
+	}
+	protocol := NewZProtocol(&cfg)
+	return protocol
+}
+
+func TestDecodeHeaderMessageSuccess(t *testing.T) {
+	var buf bytes.Buffer
+	p := initializeProtocol()
+	msg := Message{
+		Header: Header{
+			Version:    1,
+			Type:       TypePing,
+			PayloadLen: 0,
+		},
+		Payload: nil,
+	}
+	p.Encode(&buf, &msg)
+	_, err := p.DecodeHeader(&buf)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+func TestDecodeHeaderMessageFailureVersion(t *testing.T) {
+	var buf bytes.Buffer
+	p := initializeProtocol()
+	msg := Message{
+		Header: Header{
+			Version:    2,
+			Type:       TypePing,
+			PayloadLen: 0,
+		},
+		Payload: nil,
+	}
+	p.Encode(&buf, &msg)
+	_, err := p.DecodeHeader(&buf)
+	if err != nil {
+		if errors.Is(err, ErrUnsupportedVersion) {
+			return
+		}
+		t.Fatalf("unexpected error: expect ErrUnsupportedVersion, got: %v", err)
+	}
+}
+
+func TestDecodeHeaderMessageFailureMagic(t *testing.T) {
+	var buf bytes.Buffer
+	p := initializeProtocol()
+	msg := Message{
+		Header: Header{
+			Version:    1,
+			Type:       TypePing,
+			PayloadLen: 0,
+		},
+		Payload: nil,
+	}
+
+	InvalidEncode(&buf, &msg, p)
+
+	_, err := p.DecodeHeader(&buf)
+	if err != nil {
+		if errors.Is(err, ErrInvalidMagic) {
+			return
+		}
+		t.Fatalf("unexpected error: expect ErrInvalidMagic, got: %v", err)
+	}
+}
+
+func TestDecodeHeaderMessageFailurePayloadSize(t *testing.T) {
+	var buf bytes.Buffer
+	p := initializeProtocol()
+	msg := Message{
+		Header: Header{
+			Version:    1,
+			Type:       TypePing,
+			PayloadLen: 0,
+		},
+		Payload: nil,
+	}
+
+	p.Encode(&buf, &msg)
+
+	_, err := p.DecodeHeader(&buf)
+	if err != nil {
+		t.Fatalf("unexpected error: expect ErrPayloadTooLarge, got: %v", err)
+	}
+	msg.Header.PayloadLen = p.maxPayloadSize + 1
+	_, err = p.Decode(&buf, &msg.Header)
+	if err != nil {
+		if errors.Is(err, ErrPayloadTooLarge) {
+			return
+		}
+		t.Fatalf("unexpected error: expect ErrPayloadTooLarge, got: %v", err)
+	}
+}
