@@ -150,7 +150,13 @@ func (s *TCPServer) handleConnection(conn net.Conn, handler Handler) {
 }
 
 func isSendbleError(err error) bool {
-	protocolErrors := []error{protocol.ErrInvalidMagic, protocol.ErrPayloadTooLarge, protocol.ErrUnsupportedVersion}
+	protocolErrors := []error{
+		protocol.ErrInvalidMagic,
+		protocol.ErrPayloadTooLarge,
+		protocol.ErrUnsupportedVersion,
+		protocol.ErrNoNeedPayload,
+		protocol.ErrUnsupportedMessageType,
+	}
 	for _, pErr := range protocolErrors {
 		if errors.Is(err, pErr) {
 			return true

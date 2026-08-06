@@ -16,13 +16,14 @@ func main() {
 		log.Printf("failed create client: %v", err)
 		return
 	}
+	payload := []byte("Hello world!")
 	msg := protocol.Message{
 		Header: protocol.Header{
-			Version:    cfg.Protocol.Version,
-			Type:       protocol.TypePing,
-			PayloadLen: 0,
+			Version:    1,
+			Type:       protocol.TypeData,
+			PayloadLen: uint32(len(payload)),
 		},
-		Payload: nil,
+		Payload: payload,
 	}
 	resp, err := tcpClient.Send(&msg)
 	if err != nil {
