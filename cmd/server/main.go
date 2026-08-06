@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"message-broker/internal/broker"
 	"message-broker/internal/config"
 	"message-broker/internal/network"
 	"message-broker/internal/network/protocol"
@@ -16,8 +17,9 @@ func main() {
 		log.Printf("failed to create tcp server: %v", err)
 		return
 	}
+	zBroker := broker.NewZBroker(cfg)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	tcpServer.Start(ctx)
+	tcpServer.Start(ctx, zBroker)
 }

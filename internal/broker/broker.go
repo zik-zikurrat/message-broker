@@ -1,5 +1,25 @@
 package broker
 
+import (
+	"log"
+	"message-broker/internal/config"
+)
+
+type ZBroker struct {
+	cfg *config.Config
+}
+
+func NewZBroker(cfg *config.Config) *ZBroker {
+	return &ZBroker{
+		cfg: cfg,
+	}
+}
+
+func (b *ZBroker) Handle(payload []byte) error {
+	log.Printf("broker received message")
+	return nil
+}
+
 // у сообщения есть key, headers, value
 // сообщение имеет свой личный номер
 // сообщение можно читать, отправить, записать в лог
