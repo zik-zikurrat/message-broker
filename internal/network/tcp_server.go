@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"errors"
+	"io"
 	"log"
 	"message-broker/internal/config"
 	"message-broker/internal/network/protocol"
@@ -86,9 +87,8 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 			log.Printf("close server: %v\n", err)
 		}
 	}()
-Exit:
 	for {
-		conn.SetReadDeadline(time.Now().Add(s.idleTimeout))
+		conn.SetReadDeadline(time.Now().Add(s.readTimeout))
 		header, err := s.protocol.DecodeHeader(conn)
 		if err != nil {
 			s.sendError(conn, err)
@@ -96,6 +96,15 @@ Exit:
 		}
 		switch header.Type {
 		case protocol.TypePing:
+			log.Print("got message with type: Ping\n")
+			if header.PayloadLen != 0 {
+				_, err := io.CopyN(io.Discard, conn, int64(header.PayloadLen))
+				if err != nil {
+					log.Printf("read payload: %v", err)
+				}
+				s.sendError(conn, protocol.ErrNoNeedPayload)
+				continue
+			}
 			ans := protocol.Message{
 				Header: protocol.Header{
 					Version:    header.Version,
@@ -106,33 +115,29 @@ Exit:
 			}
 			if err := s.protocol.Encode(conn, &ans); err != nil {
 				s.sendError(conn, err)
-				continue Exit
+				continue
 			}
 		case protocol.TypeData:
-			header.Type = protocol.TypeAck
+			log.Print("got message with type: Data\n")
 			msg, err := s.protocol.Decode(conn, header)
 			if err != nil {
 				s.sendError(conn, err)
-				continue Exit
+				continue
 			}
+
+			conn.SetWriteDeadline(time.Now().Add(s.writeTimeout))
 			if err := s.protocol.Encode(conn, msg); err != nil {
 				s.sendError(conn, err)
-				continue Exit
+				return
 			}
 		default:
-			s.sendError(conn, errors.ErrUnsupported)
-			continue Exit
-		}
-		conn.SetReadDeadline(time.Now().Add(s.readTimeout))
-		msg, err := s.protocol.Decode(conn, header)
-		if err != nil {
-			s.sendError(conn, err)
-			break
-		}
-		conn.SetWriteDeadline(time.Now().Add(s.writeTimeout))
-		if err := s.protocol.Encode(conn, msg); err != nil {
-			s.sendError(conn, err)
-			break
+			log.Print("got message with type: Unknown\n")
+			_, err := io.CopyN(io.Discard, conn, int64(header.PayloadLen))
+			if err != nil {
+				log.Printf("read payload: %v", err)
+			}
+			s.sendError(conn, protocol.ErrUnsupportedMessageType)
+			continue
 		}
 	}
 }

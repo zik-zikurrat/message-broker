@@ -23,11 +23,9 @@ func NewTCPClinet(protocol *protocol.ZProtocol, address string, writeTimeout tim
 		log.Printf("failed to create tcp client: %v\n", err)
 		return nil, err
 	}
-	reader := bufio.NewReader(conn)
 	return &TCPClient{
 		connection:   conn,
 		protocol:     protocol,
-		reader:       reader,
 		writeTimeout: writeTimeout,
 		readTimeout:  readTimeout,
 	}, nil
@@ -49,7 +47,7 @@ func (c *TCPClient) Send(msg *protocol.Message) (*protocol.Message, error) {
 	}
 	resp, err := c.protocol.Decode(c.connection, header)
 	if err != nil {
-		return nil, fmt.Errorf("docode: %w", err)
+		return nil, fmt.Errorf("decode: %w", err)
 	}
 	return resp, nil
 }

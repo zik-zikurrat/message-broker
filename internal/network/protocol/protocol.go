@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"log"
 	"message-broker/internal/config"
 )
 
@@ -28,6 +29,7 @@ var (
 	ErrPayloadTooLarge        = errors.New("payload exceeds maximum size")
 	ErrUnsupportedVersion     = errors.New("unsupported protocol version")
 	ErrUnsupportedMessageType = errors.New("unsupported message type")
+	ErrNoNeedPayload          = errors.New("no need payload for this type")
 )
 
 type ZProtocol struct {
@@ -121,10 +123,10 @@ func (p *ZProtocol) Decode(r io.Reader, header *Header) (*Message, error) {
 			return nil, err
 		}
 	}
-
+	p.processMessage(payload)
 	return &Message{
 		Header:  *header,
-		Payload: payload,
+		Payload: nil,
 	}, nil
 }
 
@@ -136,4 +138,8 @@ func isSupportedType(msgType byte) bool {
 		}
 	}
 	return false
+}
+
+func (p *ZProtocol) processMessage(payload []byte) {
+	log.Print("received payload!")
 }
