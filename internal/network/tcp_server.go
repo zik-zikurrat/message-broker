@@ -110,7 +110,7 @@ func (s *TCPServer) handleConnection(conn net.Conn, handler Handler) {
 				continue
 			}
 			ans := protocol.Frame{
-				Header: protocol.FrameHeader{
+				FrameHeader: protocol.FrameHeader{
 					Version:    header.Version,
 					Type:       protocol.TypePong,
 					PayloadLen: 0,
@@ -132,7 +132,7 @@ func (s *TCPServer) handleConnection(conn net.Conn, handler Handler) {
 			handler.Handle(msg.Payload)
 
 			conn.SetWriteDeadline(time.Now().Add(s.writeTimeout))
-			msg.Header.Type = protocol.TypeAck
+			msg.FrameHeader.Type = protocol.TypeAck
 			if err := s.protocol.Encode(conn, msg); err != nil {
 				s.sendError(conn, err)
 				return
@@ -185,7 +185,7 @@ func (s *TCPServer) sendError(conn net.Conn, err error) {
 	}
 	log.Printf("got protocol error: %v\n", err)
 	errMsg := &protocol.Frame{
-		Header: protocol.FrameHeader{
+		FrameHeader: protocol.FrameHeader{
 			Version:    s.protocol.Version,
 			Type:       protocol.TypeError,
 			PayloadLen: uint32(len([]byte(err.Error()))),

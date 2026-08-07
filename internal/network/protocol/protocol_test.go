@@ -22,8 +22,8 @@ func InvalidEncode(w io.Writer, msg *Frame, p *ZProtocol) error {
 
 	binary.BigEndian.PutUint32(header[0:4], InvalidMagic)
 
-	header[4] = msg.Header.Version
-	header[5] = msg.Header.Type
+	header[4] = msg.FrameHeader.Version
+	header[5] = msg.FrameHeader.Type
 
 	binary.BigEndian.PutUint32(header[6:10], uint32(len(msg.Payload)))
 
@@ -53,7 +53,7 @@ func TestDecodeHeaderMessageSuccess(t *testing.T) {
 	var buf bytes.Buffer
 	p := initializeProtocol()
 	msg := Frame{
-		Header: FrameHeader{
+		FrameHeader: FrameHeader{
 			Version:    1,
 			Type:       TypePing,
 			PayloadLen: 0,
@@ -70,7 +70,7 @@ func TestDecodeHeaderMessageFailureVersion(t *testing.T) {
 	var buf bytes.Buffer
 	p := initializeProtocol()
 	msg := Frame{
-		Header: FrameHeader{
+		FrameHeader: FrameHeader{
 			Version:    2,
 			Type:       TypePing,
 			PayloadLen: 0,
@@ -91,7 +91,7 @@ func TestDecodeHeaderMessageFailureMagic(t *testing.T) {
 	var buf bytes.Buffer
 	p := initializeProtocol()
 	msg := Frame{
-		Header: FrameHeader{
+		FrameHeader: FrameHeader{
 			Version:    1,
 			Type:       TypePing,
 			PayloadLen: 0,
@@ -114,7 +114,7 @@ func TestDecodeHeaderMessageFailurePayloadSize(t *testing.T) {
 	var buf bytes.Buffer
 	p := initializeProtocol()
 	msg := Frame{
-		Header: FrameHeader{
+		FrameHeader: FrameHeader{
 			Version:    1,
 			Type:       TypePing,
 			PayloadLen: 0,
@@ -128,8 +128,8 @@ func TestDecodeHeaderMessageFailurePayloadSize(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: expect ErrPayloadTooLarge, got: %v", err)
 	}
-	msg.Header.PayloadLen = p.maxPayloadSize + 1
-	_, err = p.Decode(&buf, &msg.Header)
+	msg.FrameHeader.PayloadLen = p.maxPayloadSize + 1
+	_, err = p.Decode(&buf, &msg.FrameHeader)
 	if err != nil {
 		if errors.Is(err, ErrPayloadTooLarge) {
 			return

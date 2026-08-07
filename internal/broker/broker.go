@@ -3,6 +3,7 @@ package broker
 import (
 	"log"
 	"message-broker/internal/config"
+	"message-broker/internal/network/protocol"
 )
 
 type ZBroker struct {
@@ -15,8 +16,14 @@ func NewZBroker(cfg *config.Config) *ZBroker {
 	}
 }
 
-func (b *ZBroker) Handle(payload []byte) error {
+func (b *ZBroker) Handle(frame *protocol.Frame) error {
 	log.Printf("broker received message")
+	switch frame.FrameHeader.Type {
+	case protocol.TypeFetch:
+		panic("not implemented logic for fetch type")
+	case protocol.TypeProduce:
+		panic("not implemented logic for produce type")
+	}
 	return nil
 }
 
@@ -25,14 +32,3 @@ type Message struct {
 	Value   []byte
 	Headers map[any]any
 }
-
-// у сообщения есть key, headers, value
-// сообщение имеет свой личный номер
-// сообщение можно читать, отправить, записать в лог
-// сообщение можно отправит в топик
-// у топика есть много партиций, партиции читают консумеры
-// топик должен знать сколько consumers его читают
-
-// брокер владеет топиками и управляет репликами
-// топик владеет партициями и управляет их колличеством
-// партиции владеют сообщениями и управляют доступом к ним

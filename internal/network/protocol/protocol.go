@@ -56,8 +56,8 @@ type FrameHeader struct {
 }
 
 type Frame struct {
-	Header  FrameHeader
-	Payload []byte
+	FrameHeader FrameHeader
+	Payload     []byte
 }
 
 func (p *ZProtocol) Encode(w io.Writer, msg *Frame) error {
@@ -69,8 +69,8 @@ func (p *ZProtocol) Encode(w io.Writer, msg *Frame) error {
 
 	binary.BigEndian.PutUint32(header[0:4], MagicZAKA)
 
-	header[4] = msg.Header.Version
-	header[5] = msg.Header.Type
+	header[4] = msg.FrameHeader.Version
+	header[5] = msg.FrameHeader.Type
 
 	binary.BigEndian.PutUint32(header[6:10], uint32(len(msg.Payload)))
 
@@ -124,8 +124,8 @@ func (p *ZProtocol) Decode(r io.Reader, header *FrameHeader) (*Frame, error) {
 		}
 	}
 	return &Frame{
-		Header:  *header,
-		Payload: payload,
+		FrameHeader: *header,
+		Payload:     payload,
 	}, nil
 }
 
