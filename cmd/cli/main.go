@@ -17,10 +17,10 @@ func main() {
 		return
 	}
 	payload := []byte("Hello world!")
-	msg := protocol.Message{
-		Header: protocol.Header{
+	msg := protocol.Frame{
+		Header: protocol.FrameHeader{
 			Version:    1,
-			Type:       protocol.TypeData,
+			Type:       protocol.TypeProduce,
 			PayloadLen: uint32(len(payload)),
 		},
 		Payload: payload,

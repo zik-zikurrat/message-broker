@@ -109,8 +109,8 @@ func (s *TCPServer) handleConnection(conn net.Conn, handler Handler) {
 				s.sendError(conn, protocol.ErrNoNeedPayload)
 				continue
 			}
-			ans := protocol.Message{
-				Header: protocol.Header{
+			ans := protocol.Frame{
+				Header: protocol.FrameHeader{
 					Version:    header.Version,
 					Type:       protocol.TypePong,
 					PayloadLen: 0,
@@ -121,8 +121,8 @@ func (s *TCPServer) handleConnection(conn net.Conn, handler Handler) {
 				s.sendError(conn, err)
 				continue
 			}
-		case protocol.TypeData:
-			log.Print("got message with type: Data\n")
+		case protocol.TypeProduce:
+			log.Print("got message with type: Produce\n")
 			msg, err := s.protocol.Decode(conn, header)
 			if err != nil {
 				s.sendError(conn, err)
@@ -184,8 +184,8 @@ func (s *TCPServer) sendError(conn net.Conn, err error) {
 		return
 	}
 	log.Printf("got protocol error: %v\n", err)
-	errMsg := &protocol.Message{
-		Header: protocol.Header{
+	errMsg := &protocol.Frame{
+		Header: protocol.FrameHeader{
 			Version:    s.protocol.Version,
 			Type:       protocol.TypeError,
 			PayloadLen: uint32(len([]byte(err.Error()))),

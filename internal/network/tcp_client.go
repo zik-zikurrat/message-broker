@@ -31,7 +31,7 @@ func NewTCPClinet(protocol *protocol.ZProtocol, address string, writeTimeout tim
 	}, nil
 }
 
-func (c *TCPClient) Send(msg *protocol.Message) (*protocol.Message, error) {
+func (c *TCPClient) Send(msg *protocol.Frame) (*protocol.Frame, error) {
 	if err := c.connection.SetWriteDeadline(time.Now().Add(c.writeTimeout)); err != nil {
 		return nil, fmt.Errorf("set deadline: %w", err)
 	}

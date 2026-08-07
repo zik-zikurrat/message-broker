@@ -18,8 +18,9 @@ const (
 const (
 	TypePing uint8 = iota + 1
 	TypePong
-	TypeData
 	TypeAck
+	TypeProduce
+	TypeFetch
 	TypeError
 )
 
@@ -48,18 +49,18 @@ func NewZProtocol(cfg *config.ProtocolConfig) *ZProtocol {
 	}
 }
 
-type Header struct {
+type FrameHeader struct {
 	Version    uint8
 	Type       uint8
 	PayloadLen uint32
 }
 
-type Message struct {
-	Header  Header
+type Frame struct {
+	Header  FrameHeader
 	Payload []byte
 }
 
-func (p *ZProtocol) Encode(w io.Writer, msg *Message) error {
+func (p *ZProtocol) Encode(w io.Writer, msg *Frame) error {
 	if len(msg.Payload) > int(p.maxPayloadSize) {
 		return ErrPayloadTooLarge
 	}
@@ -85,7 +86,7 @@ func (p *ZProtocol) Encode(w io.Writer, msg *Message) error {
 	return nil
 }
 
-func (p *ZProtocol) DecodeHeader(r io.Reader) (*Header, error) {
+func (p *ZProtocol) DecodeHeader(r io.Reader) (*FrameHeader, error) {
 	header := make([]byte, headerSize)
 
 	if _, err := io.ReadFull(r, header); err != nil {
@@ -104,14 +105,14 @@ func (p *ZProtocol) DecodeHeader(r io.Reader) (*Header, error) {
 
 	msgType := header[5]
 	payloadLen := binary.BigEndian.Uint32(header[6:10])
-	return &Header{
+	return &FrameHeader{
 		Version:    version,
 		Type:       msgType,
 		PayloadLen: payloadLen,
 	}, nil
 }
 
-func (p *ZProtocol) Decode(r io.Reader, header *Header) (*Message, error) {
+func (p *ZProtocol) Decode(r io.Reader, header *FrameHeader) (*Frame, error) {
 	if header.PayloadLen > uint32(p.maxPayloadSize) {
 		return nil, ErrPayloadTooLarge
 	}
@@ -122,14 +123,14 @@ func (p *ZProtocol) Decode(r io.Reader, header *Header) (*Message, error) {
 			return nil, err
 		}
 	}
-	return &Message{
+	return &Frame{
 		Header:  *header,
 		Payload: payload,
 	}, nil
 }
 
 func isSupportedType(msgType byte) bool {
-	supportedTypes := []uint8{TypeAck, TypePing, TypeData, TypeError, TypePong}
+	supportedTypes := []uint8{TypeAck, TypePing, TypeProduce, TypeError, TypePong}
 	for _, sType := range supportedTypes {
 		if uint8(msgType) == sType {
 			return true

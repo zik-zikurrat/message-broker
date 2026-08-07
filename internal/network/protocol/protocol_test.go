@@ -13,7 +13,7 @@ const (
 	InvalidMagic uint32 = 0x5A414B43
 )
 
-func InvalidEncode(w io.Writer, msg *Message, p *ZProtocol) error {
+func InvalidEncode(w io.Writer, msg *Frame, p *ZProtocol) error {
 	if len(msg.Payload) > int(p.maxPayloadSize) {
 		return ErrPayloadTooLarge
 	}
@@ -52,8 +52,8 @@ func initializeProtocol() *ZProtocol {
 func TestDecodeHeaderMessageSuccess(t *testing.T) {
 	var buf bytes.Buffer
 	p := initializeProtocol()
-	msg := Message{
-		Header: Header{
+	msg := Frame{
+		Header: FrameHeader{
 			Version:    1,
 			Type:       TypePing,
 			PayloadLen: 0,
@@ -69,8 +69,8 @@ func TestDecodeHeaderMessageSuccess(t *testing.T) {
 func TestDecodeHeaderMessageFailureVersion(t *testing.T) {
 	var buf bytes.Buffer
 	p := initializeProtocol()
-	msg := Message{
-		Header: Header{
+	msg := Frame{
+		Header: FrameHeader{
 			Version:    2,
 			Type:       TypePing,
 			PayloadLen: 0,
@@ -90,8 +90,8 @@ func TestDecodeHeaderMessageFailureVersion(t *testing.T) {
 func TestDecodeHeaderMessageFailureMagic(t *testing.T) {
 	var buf bytes.Buffer
 	p := initializeProtocol()
-	msg := Message{
-		Header: Header{
+	msg := Frame{
+		Header: FrameHeader{
 			Version:    1,
 			Type:       TypePing,
 			PayloadLen: 0,
@@ -113,8 +113,8 @@ func TestDecodeHeaderMessageFailureMagic(t *testing.T) {
 func TestDecodeHeaderMessageFailurePayloadSize(t *testing.T) {
 	var buf bytes.Buffer
 	p := initializeProtocol()
-	msg := Message{
-		Header: Header{
+	msg := Frame{
+		Header: FrameHeader{
 			Version:    1,
 			Type:       TypePing,
 			PayloadLen: 0,
